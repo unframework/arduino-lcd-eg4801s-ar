@@ -8,6 +8,7 @@ const int pinD0 = 8;
 const int pinD1 = 9;
 const int pinD2 = 10;
 const int pinD3 = 11;
+const int pinVLCD = 13;
 
 void setup() {
   pinMode(pinLP, OUTPUT);
@@ -20,8 +21,6 @@ void setup() {
   pinMode(pinD1, OUTPUT);
   pinMode(pinD2, OUTPUT);
   pinMode(pinD3, OUTPUT);
-
-  pinMode(13, OUTPUT);
 }
 
 void loop() {
@@ -30,7 +29,11 @@ void loop() {
   while(1) {
     frame += 1;
 
-    digitalWrite(13, frame % 2 ? HIGH : LOW);
+    if (frame > 1) {
+      // enable LCD negative voltage drop once some signal comes through
+      pinMode(pinVLCD, OUTPUT);
+      digitalWrite(pinVLCD, LOW);
+    }
 
     // run the Y-lines
     for (int line = 0; line < 64; line += 1) {
@@ -43,26 +46,26 @@ void loop() {
       }
 
       // drop YSCL after a wait
-      delayMicroseconds(4);
+      delayMicroseconds(1);
       digitalWrite(pinYSCL, LOW);
 
       // if DIN was up due to start of frame, lower it after a wait
       if (line == 0) {
-        delayMicroseconds(4);
+        delayMicroseconds(1);
         digitalWrite(pinDIN, LOW);
       }
 
       // always set up the first XECL of dot block series
       digitalWrite(pinXECL, HIGH);
-      delayMicroseconds(4);
+      delayMicroseconds(1);
 
       // set up latch
       digitalWrite(pinLP, HIGH);
 
       // drop XECL midway while latch is up
-      delayMicroseconds(4);
+      delayMicroseconds(1);
       digitalWrite(pinXECL, LOW);
-      delayMicroseconds(4);
+      delayMicroseconds(1);
 
       // finally drop latch
       digitalWrite(pinLP, LOW);
@@ -77,9 +80,9 @@ void loop() {
         // toggle XECL (except the first one that is aligned to latch timing)
         if (dot != 0 && dot % 16 == 0) {
           digitalWrite(pinXECL, HIGH);
-          delayMicroseconds(4);
+          delayMicroseconds(1);
           digitalWrite(pinXECL, LOW);
-          delayMicroseconds(4);
+          delayMicroseconds(1);
         }
 
         // send data
@@ -92,9 +95,9 @@ void loop() {
 
         // toggle XSCL up and down
         digitalWrite(pinXSCL, HIGH);
-        delayMicroseconds(4);
+        delayMicroseconds(1);
         digitalWrite(pinXSCL, LOW);
-        delayMicroseconds(4);
+        delayMicroseconds(1);
       }
     }
   }
