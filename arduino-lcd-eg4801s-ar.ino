@@ -70,7 +70,8 @@ void loop() {
       digitalWrite(pinYSCL, HIGH);
 
       // at start of frame, also move up DIN
-      if (line == 0) {
+      int useDIN = line < 6;
+      if (useDIN) {
         digitalWrite(pinDIN, HIGH);
       }
 
@@ -79,7 +80,7 @@ void loop() {
       digitalWrite(pinYSCL, LOW);
 
       // if DIN was up due to start of frame, lower it after a wait
-      if (line == 0) {
+      if (useDIN) {
         delayMicroseconds(1);
         digitalWrite(pinDIN, LOW);
       }
@@ -105,6 +106,8 @@ void loop() {
       if (line == 63) {
         digitalWrite(pinFR, frame & 1 ? LOW : HIGH);
       }
+
+      delay(10); // minimum delay after latch @todo remove
     }
   }
 }
