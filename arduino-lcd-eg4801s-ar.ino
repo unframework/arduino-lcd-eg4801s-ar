@@ -41,26 +41,6 @@ void loop() {
 
     // run the Y-lines
     for (int line = 0; line < 64; line += 1) {
-      // move up YSCL
-      digitalWrite(pinYSCL, HIGH);
-
-      // at start of frame, also move up DIN
-      if (line == 0) {
-        digitalWrite(pinDIN, HIGH);
-      }
-
-      // drop YSCL after a wait
-      delayMicroseconds(1);
-      digitalWrite(pinYSCL, LOW);
-
-      // if DIN was up due to start of frame, lower it after a wait
-      if (line == 0) {
-        delayMicroseconds(1);
-        digitalWrite(pinDIN, LOW);
-      }
-
-      delayMicroseconds(1); // @todo remove
-
       // run the X-axis
       for (int dot = 0; dot < 256; dot += 1) {
         // send data
@@ -85,6 +65,26 @@ void loop() {
           delayMicroseconds(1);
         }
       }
+
+      // move up YSCL (cannot do this too early after previous latch)
+      digitalWrite(pinYSCL, HIGH);
+
+      // at start of frame, also move up DIN
+      if (line == 0) {
+        digitalWrite(pinDIN, HIGH);
+      }
+
+      // drop YSCL after a wait (can run latch immediately after)
+      delayMicroseconds(1);
+      digitalWrite(pinYSCL, LOW);
+
+      // if DIN was up due to start of frame, lower it after a wait
+      if (line == 0) {
+        delayMicroseconds(1);
+        digitalWrite(pinDIN, LOW);
+      }
+
+      delayMicroseconds(1); // @todo remove
 
       // set up the last XECL of dot block series
       digitalWrite(pinXECL, HIGH);
