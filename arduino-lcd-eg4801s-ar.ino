@@ -21,6 +21,8 @@ void setup() {
   pinMode(pinD1, OUTPUT);
   pinMode(pinD2, OUTPUT);
   pinMode(pinD3, OUTPUT);
+
+  pinMode(pinVLCD, INPUT_PULLUP);
 }
 
 void loop() {
@@ -34,6 +36,8 @@ void loop() {
       pinMode(pinVLCD, OUTPUT);
       digitalWrite(pinVLCD, LOW);
     }
+
+    delay(1500); // debug hold, seems to let the screen show whatever was accumulated @todo remove
 
     // run the Y-lines
     for (int line = 0; line < 64; line += 1) {
@@ -55,7 +59,34 @@ void loop() {
         digitalWrite(pinDIN, LOW);
       }
 
-      // always set up the first XECL of dot block series
+      delayMicroseconds(1); // @todo remove
+
+      // run the X-axis
+      for (int dot = 0; dot < 256; dot += 1) {
+        // send data
+        int val1 = line & 1 ? HIGH : LOW;
+        int val2 = line & 1 ? LOW : HIGH;
+        digitalWrite(pinD0, val1);
+        digitalWrite(pinD1, val1);
+        digitalWrite(pinD2, val2);
+        digitalWrite(pinD3, val2);
+
+        // toggle XSCL up and down
+        digitalWrite(pinXSCL, HIGH);
+        delayMicroseconds(1);
+        digitalWrite(pinXSCL, LOW);
+        delayMicroseconds(1);
+
+        // toggle XECL (except the last one that is aligned to latch timing)
+        if (dot != 255 && dot % 16 == 15) {
+          digitalWrite(pinXECL, HIGH);
+          delayMicroseconds(1);
+          digitalWrite(pinXECL, LOW);
+          delayMicroseconds(1);
+        }
+      }
+
+      // set up the last XECL of dot block series
       digitalWrite(pinXECL, HIGH);
       delayMicroseconds(1);
 
@@ -70,34 +101,9 @@ void loop() {
       // finally drop latch
       digitalWrite(pinLP, LOW);
 
-      // on first line, toggle frame signal around the same time as latch drop
-      if (line == 0) {
+      // on last line, toggle frame signal around the same time as latch drop
+      if (line == 63) {
         digitalWrite(pinFR, frame & 1 ? LOW : HIGH);
-      }
-
-      // run the X-axis
-      for (int dot = 0; dot < 256; dot += 1) {
-        // toggle XECL (except the first one that is aligned to latch timing)
-        if (dot != 0 && dot % 16 == 0) {
-          digitalWrite(pinXECL, HIGH);
-          delayMicroseconds(1);
-          digitalWrite(pinXECL, LOW);
-          delayMicroseconds(1);
-        }
-
-        // send data
-        int val1 = line & 1 ? HIGH : LOW;
-        int val2 = line & 1 ? LOW : HIGH;
-        digitalWrite(pinD0, val1);
-        digitalWrite(pinD1, val2);
-        digitalWrite(pinD2, val1);
-        digitalWrite(pinD3, val2);
-
-        // toggle XSCL up and down
-        digitalWrite(pinXSCL, HIGH);
-        delayMicroseconds(1);
-        digitalWrite(pinXSCL, LOW);
-        delayMicroseconds(1);
       }
     }
   }
