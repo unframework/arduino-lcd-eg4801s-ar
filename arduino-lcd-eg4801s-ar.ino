@@ -10,6 +10,41 @@ const int pinD2 = 10;
 const int pinD3 = 11;
 const int pinVLCD = 13;
 
+#define PORT_A_PIN_2  0b00000100
+#define PORT_A_PIN_3  0b00001000
+#define PORT_A_PIN_4  0b00010000
+#define PORT_A_PIN_5  0b00100000
+#define PORT_A_PIN_6  0b01000000
+#define PORT_A_PIN_7  0b10000000
+
+#define PORT_B_PIN_8  0b00000001
+#define PORT_B_PIN_9  0b00000010
+#define PORT_B_PIN_10 0b00000100
+#define PORT_B_PIN_11 0b00001000
+#define PORT_B_PIN_12 0b00010000
+#define PORT_B_PIN_13 0b00100000
+
+#define SET(port, pinset) (port |= pinset)
+#define CLR(port, pinset) (port &= (~pinset))
+
+// pins:
+
+// on PORTD:
+// XSCL = 2
+// XECL = 3
+// D0 = 4
+// D1 = 5
+// D2 = 6
+// D3 = 7
+
+// on PORTB:
+// YSCL = 8
+// DIN = 9
+// LP = 10
+// FR = 11
+
+// @todo set up dedicated macro for PORTD to set D0-D3 at once, etc
+
 void setup() {
   pinMode(pinLP, OUTPUT);
   pinMode(pinFR, OUTPUT);
@@ -31,7 +66,7 @@ void loop() {
   while(1) {
     frame += 1;
 
-    if (frame > 1) {
+    if (frame == 1) {
       // enable LCD negative voltage drop once some signal comes through
       pinMode(pinVLCD, OUTPUT);
       digitalWrite(pinVLCD, LOW);
