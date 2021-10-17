@@ -58,16 +58,12 @@ void loop() {
 
         // toggle XSCL up and down
         digitalWrite(pinXSCL, HIGH);
-        delayMicroseconds(1);
         digitalWrite(pinXSCL, LOW);
-        delayMicroseconds(1);
 
-        // toggle XECL (except the last one that is aligned to latch timing)
+        // toggle XECL after a delay (except for the last one which is aligned to latch timing)
         if (dot != 255 && (dot & 15) == 15) {
           digitalWrite(pinXECL, HIGH);
-          delayMicroseconds(1);
           digitalWrite(pinXECL, LOW);
-          delayMicroseconds(1);
         }
       }
 
@@ -81,37 +77,30 @@ void loop() {
       }
 
       // drop YSCL after a wait (can run latch immediately after)
-      delayMicroseconds(1);
       digitalWrite(pinYSCL, LOW);
 
       // if DIN was up due to start of frame, lower it after a wait
       if (useDIN) {
-        delayMicroseconds(1);
         digitalWrite(pinDIN, LOW);
       }
 
-      delayMicroseconds(1); // @todo remove
 
       // set up the last XECL of dot block series
       digitalWrite(pinXECL, HIGH);
-      delayMicroseconds(1);
 
       // set up latch
       digitalWrite(pinLP, HIGH);
 
       // drop XECL midway while latch is up
-      delayMicroseconds(1);
       digitalWrite(pinXECL, LOW);
-      delayMicroseconds(1);
 
       if (line == 63) {
         // on last line, toggle frame signal around the same time as latch drop
         digitalWrite(pinFR, frame & 1 ? LOW : HIGH);
-        digitalWrite(pinLP, LOW);
-      } else {
-        // just drop latch
-        digitalWrite(pinLP, LOW);
       }
+
+      // finally drop latch
+      digitalWrite(pinLP, LOW);
     }
   }
 }
