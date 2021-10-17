@@ -37,19 +37,24 @@ void loop() {
       digitalWrite(pinVLCD, LOW);
     }
 
-    delay(1500); // debug hold, seems to let the screen show whatever was accumulated @todo remove
-
     // run the Y-lines
     for (int line = 0; line < 64; line += 1) {
       // run the X-axis
       for (int dot = 0; dot < 256; dot += 1) {
         // send data
-        int val1 = line & 1 ? HIGH : LOW;
-        int val2 = line & 1 ? LOW : HIGH;
-        digitalWrite(pinD0, val1);
-        digitalWrite(pinD1, val1);
-        digitalWrite(pinD2, val2);
-        digitalWrite(pinD3, val2);
+        // int val1 = line & 1 ? HIGH : LOW;
+        // int val2 = line & 1 ? LOW : HIGH;
+        // digitalWrite(pinD0, val1);
+        // digitalWrite(pinD1, val1);
+        // digitalWrite(pinD2, val2);
+        // digitalWrite(pinD3, val2);
+
+        // diagonal stripe pattern
+        int myval = ((line + dot) & 15) < 8 ? 15 : 0;
+        digitalWrite(pinD0, (myval & 1));
+        digitalWrite(pinD1, (myval & 2) >> 1);
+        digitalWrite(pinD2, (myval & 4) >> 2);
+        digitalWrite(pinD3, (myval & 8) >> 3);
 
         // toggle XSCL up and down
         digitalWrite(pinXSCL, HIGH);
@@ -58,7 +63,7 @@ void loop() {
         delayMicroseconds(1);
 
         // toggle XECL (except the last one that is aligned to latch timing)
-        if (dot != 255 && dot % 16 == 15) {
+        if (dot != 255 && (dot & 15) == 15) {
           digitalWrite(pinXECL, HIGH);
           delayMicroseconds(1);
           digitalWrite(pinXECL, LOW);
@@ -70,7 +75,7 @@ void loop() {
       digitalWrite(pinYSCL, HIGH);
 
       // at start of frame, also move up DIN
-      int useDIN = line < 6;
+      int useDIN = line < 2;
       if (useDIN) {
         digitalWrite(pinDIN, HIGH);
       }
@@ -99,15 +104,14 @@ void loop() {
       digitalWrite(pinXECL, LOW);
       delayMicroseconds(1);
 
-      // finally drop latch
-      digitalWrite(pinLP, LOW);
-
-      // on last line, toggle frame signal around the same time as latch drop
       if (line == 63) {
+        // on last line, toggle frame signal around the same time as latch drop
         digitalWrite(pinFR, frame & 1 ? LOW : HIGH);
+        digitalWrite(pinLP, LOW);
+      } else {
+        // just drop latch
+        digitalWrite(pinLP, LOW);
       }
-
-      delay(10); // minimum delay after latch @todo remove
     }
   }
 }
