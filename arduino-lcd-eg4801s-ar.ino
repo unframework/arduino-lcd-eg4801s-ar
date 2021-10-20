@@ -56,58 +56,56 @@ void loop() {
     }
 
     // run the Y-lines
+    int pattern = 0b1010;
     for (int line = 0; line < 64; line += 1) {
-      // run the X-axis
-      for (int dot = 0; dot < 256; dot += 1) {
-        // send data
-        // int val1 = line & 1 ? HIGH : LOW;
-        // int val2 = line & 1 ? LOW : HIGH;
-        // digitalWrite(pinD0, val1);
-        // digitalWrite(pinD1, val1);
-        // digitalWrite(pinD2, val2);
-        // digitalWrite(pinD3, val2);
+      pattern <<= 1;
+      pattern = pattern | ((pattern >> 4) & 1);
 
-        // diagonal stripe pattern
-        int myval = ((line + dot) & 15) < 8 ? 15 : 0;
-        SET_MASK(
-          PORTD,
-          PORTD_DATA_PINS(0b1111),
-          PORTD_DATA_PINS(myval)
-        );
+      // go through X-axis banks
+      for (int bank = 0; ; bank += 1) {
+        // run the X-axis
+        for (int dot = 0; dot < 16; dot += 1) {
+          // fast pattern
+          SET_MASK(
+            PORTD,
+            PORTD_DATA_PINS(0b1111),
+            PORTD_DATA_PINS(pattern)
+          );
 
-        // toggle XSCL up and down
-        SET(PORTD, PORTD_XSCL);
-        NOP();
-        CLR(PORTD, PORTD_XSCL);
+          // toggle XSCL up and down
+          SET(PORTD, PORTD_XSCL);
+          NOP();
+          CLR(PORTD, PORTD_XSCL);
+        }
 
         // toggle XECL after a delay (except for the last one which is aligned to latch timing)
-        if (dot != 255 && (dot & 15) == 15) {
-          SET(PORTD, PORTD_XECL);
-          NOP();
-          CLR(PORTD, PORTD_XECL);
+        if (bank >= 15) {
+          break;
         }
+
+        SET(PORTD, PORTD_XECL);
+        NOP();
+        CLR(PORTD, PORTD_XECL);
       }
 
-      // move up YSCL (cannot do this too early after previous latch)
-      SET(PORTB, PORTB_PIN_YSCL);
-      NOP();
+      if (line > 0) {
+        // move up YSCL (cannot do this too early after previous latch)
+        SET(PORTB, PORTB_PIN_YSCL);
+        NOP();
 
-      // at start of frame, also move up DIN
-      int useDIN = line < 2;
-      if (useDIN) {
+        // drop YSCL after a wait (can run latch immediately after)
+        CLR(PORTB, PORTB_PIN_YSCL);
+      } else {
+        // at start of frame, also move up DIN before YSCL
+        SET(PORTB, PORTB_PIN_YSCL);
+        NOP();
         SET(PORTB, PORTB_PIN_DIN);
         NOP();
-      }
 
-      // drop YSCL after a wait (can run latch immediately after)
-      CLR(PORTB, PORTB_PIN_YSCL);
-
-      // if DIN was up due to start of frame, lower it after a wait
-      if (useDIN) {
+        CLR(PORTB, PORTB_PIN_YSCL);
         NOP();
         CLR(PORTB, PORTB_PIN_DIN);
       }
-
 
       // set up the last XECL of dot block series
       SET(PORTD, PORTD_XECL);
