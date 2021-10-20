@@ -1,61 +1,44 @@
-const int pinLP = 2;
-const int pinFR = 3;
-const int pinYSCL = 4;
-const int pinDIN = 5;
-const int pinXSCL = 6;
-const int pinXECL = 7;
-const int pinD0 = 8;
-const int pinD1 = 9;
-const int pinD2 = 10;
-const int pinD3 = 11;
 const int pinVLCD = 13;
 
-#define PORT_A_PIN_2  0b00000100
-#define PORT_A_PIN_3  0b00001000
-#define PORT_A_PIN_4  0b00010000
-#define PORT_A_PIN_5  0b00100000
-#define PORT_A_PIN_6  0b01000000
-#define PORT_A_PIN_7  0b10000000
+// X-driver: pins 2-7
+#define PORTD_XSCL (1 << 2)
+#define PORTD_XECL (1 << 3)
+#define PORTD_D0   (1 << 4)
+#define PORTD_D1   (1 << 5)
+#define PORTD_D2   (1 << 6)
+#define PORTD_D3   (1 << 7)
 
-#define PORT_B_PIN_8  0b00000001
-#define PORT_B_PIN_9  0b00000010
-#define PORT_B_PIN_10 0b00000100
-#define PORT_B_PIN_11 0b00001000
-#define PORT_B_PIN_12 0b00010000
-#define PORT_B_PIN_13 0b00100000
+#define PORTD_DATA_PINS(value4bit) (value4bit << 4)
+
+// Y-scan, frame: pins 8-11
+#define PORTB_PIN_YSCL (1 << 0)
+#define PORTB_PIN_DIN  (1 << 1)
+#define PORTB_PIN_LP   (1 << 2)
+#define PORTB_PIN_FR   (1 << 3)
 
 #define SET(port, pinset) (port |= pinset)
 #define CLR(port, pinset) (port &= (~pinset))
 
-// pins:
+#define SET_MASK(port, mask, pinset) (port = (port & (~mask)) | pinset)
 
-// on PORTD:
-// XSCL = 2
-// XECL = 3
-// D0 = 4
-// D1 = 5
-// D2 = 6
-// D3 = 7
-
-// on PORTB:
-// YSCL = 8
-// DIN = 9
-// LP = 10
-// FR = 11
-
-// @todo set up dedicated macro for PORTD to set D0-D3 at once, etc
+#define NOP() __asm__("nop\n\t")
 
 void setup() {
-  pinMode(pinLP, OUTPUT);
-  pinMode(pinFR, OUTPUT);
-  pinMode(pinYSCL, OUTPUT);
-  pinMode(pinDIN, OUTPUT);
-  pinMode(pinXSCL, OUTPUT);
-  pinMode(pinXECL, OUTPUT);
-  pinMode(pinD0, OUTPUT);
-  pinMode(pinD1, OUTPUT);
-  pinMode(pinD2, OUTPUT);
-  pinMode(pinD3, OUTPUT);
+  SET(DDRD, (
+    PORTD_XSCL |
+    PORTD_XECL |
+    PORTD_D0 |
+    PORTD_D1 |
+    PORTD_D2 |
+    PORTD_D3
+  ));
+
+  SET(DDRB, (
+    PORTB_PIN_YSCL |
+    PORTB_PIN_DIN |
+    PORTB_PIN_LP |
+    PORTB_PIN_FR
+  ));
 
   pinMode(pinVLCD, INPUT_PULLUP);
 }
@@ -86,56 +69,69 @@ void loop() {
 
         // diagonal stripe pattern
         int myval = ((line + dot) & 15) < 8 ? 15 : 0;
-        digitalWrite(pinD0, (myval & 1));
-        digitalWrite(pinD1, (myval & 2) >> 1);
-        digitalWrite(pinD2, (myval & 4) >> 2);
-        digitalWrite(pinD3, (myval & 8) >> 3);
+        SET_MASK(
+          PORTD,
+          PORTD_DATA_PINS(0b1111),
+          PORTD_DATA_PINS(myval)
+        );
 
         // toggle XSCL up and down
-        digitalWrite(pinXSCL, HIGH);
-        digitalWrite(pinXSCL, LOW);
+        SET(PORTD, PORTD_XSCL);
+        NOP();
+        CLR(PORTD, PORTD_XSCL);
 
         // toggle XECL after a delay (except for the last one which is aligned to latch timing)
         if (dot != 255 && (dot & 15) == 15) {
-          digitalWrite(pinXECL, HIGH);
-          digitalWrite(pinXECL, LOW);
+          SET(PORTD, PORTD_XECL);
+          NOP();
+          CLR(PORTD, PORTD_XECL);
         }
       }
 
       // move up YSCL (cannot do this too early after previous latch)
-      digitalWrite(pinYSCL, HIGH);
+      SET(PORTB, PORTB_PIN_YSCL);
+      NOP();
 
       // at start of frame, also move up DIN
       int useDIN = line < 2;
       if (useDIN) {
-        digitalWrite(pinDIN, HIGH);
+        SET(PORTB, PORTB_PIN_DIN);
+        NOP();
       }
 
       // drop YSCL after a wait (can run latch immediately after)
-      digitalWrite(pinYSCL, LOW);
+      CLR(PORTB, PORTB_PIN_YSCL);
 
       // if DIN was up due to start of frame, lower it after a wait
       if (useDIN) {
-        digitalWrite(pinDIN, LOW);
+        NOP();
+        CLR(PORTB, PORTB_PIN_DIN);
       }
 
 
       // set up the last XECL of dot block series
-      digitalWrite(pinXECL, HIGH);
+      SET(PORTD, PORTD_XECL);
+      NOP(); // hold a bit more just in case
 
       // set up latch
-      digitalWrite(pinLP, HIGH);
+      SET(PORTB, PORTB_PIN_LP);
 
       // drop XECL midway while latch is up
-      digitalWrite(pinXECL, LOW);
+      NOP(); // hold a bit more just in case
+      CLR(PORTD, PORTD_XECL);
+      NOP(); // hold a bit more just in case
 
       if (line == 63) {
         // on last line, toggle frame signal around the same time as latch drop
-        digitalWrite(pinFR, frame & 1 ? LOW : HIGH);
+        SET_MASK(
+          PORTB,
+          (PORTB_PIN_LP | PORTB_PIN_FR), // affect these two pins
+          frame & 1 ? 0 : PORTB_PIN_FR // always zero for LP + toggle FR
+        );
+      } else {
+        // normally just drop latch
+        CLR(PORTB, PORTB_PIN_LP);
       }
-
-      // finally drop latch
-      digitalWrite(pinLP, LOW);
     }
   }
 }
