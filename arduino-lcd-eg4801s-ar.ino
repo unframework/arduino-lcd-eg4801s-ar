@@ -23,6 +23,14 @@ const int pinVLCD = 13;
 
 #define NOP() __asm__("nop\n\t")
 
+const PROGMEM uint8_t dotBlockData[] = {
+  PORTD_DATA_PINS(0b1100),
+  PORTD_DATA_PINS(0b1101),
+  PORTD_DATA_PINS(0b0101),
+  PORTD_DATA_PINS(0b1100)
+};
+#define DOT_BLOCK_COUNT 4
+
 void setup() {
   SET(DDRD, (
     PORTD_XSCL |
@@ -47,7 +55,7 @@ void loop() {
   int frame = 0;
 
   while(1) {
-    frame += 1;
+    frame++;
 
     if (frame == 1) {
       // enable LCD negative voltage drop once some signal comes through
@@ -56,27 +64,39 @@ void loop() {
     }
 
     // run the Y-lines
-    int pattern = 0b1010;
-    for (int line = 0; line < 64; line += 1) {
-      pattern <<= 1;
-      pattern = pattern | ((pattern >> 4) & 1);
-
+    int dotBlock = 0;
+    for (int line = 0; line < 64; line++) {
       // go through X-axis banks
-      for (int bank = 0; ; bank += 1) {
-        // run the X-axis
-        for (int dot = 0; dot < 16; dot += 1) {
-          // fast pattern
-          SET_MASK(
-            PORTD,
-            PORTD_DATA_PINS(0b1111),
-            PORTD_DATA_PINS(pattern)
-          );
-
-          // toggle XSCL up and down
-          SET(PORTD, PORTD_XSCL);
-          NOP();
-          CLR(PORTD, PORTD_XSCL);
+      for (int bank = 0; ; bank++) {
+        // unwrapped loop to set pattern from memory and then toggle XSCL up/down
+        #define DOTTICK() { \
+          uint8_t portXSCLDown = pgm_read_byte(dotBlockData + dotBlock); \
+          uint8_t portXSCLUp = portXSCLDown | PORTD_XSCL; \
+          PORTD = portXSCLDown; \
+          dotBlock++; \
+          dotBlock = dotBlock & (DOT_BLOCK_COUNT - 1); \
+          NOP(); \
+          PORTD = portXSCLUp; \
+          NOP(); \
+          PORTD = portXSCLDown; \
         }
+
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
+        DOTTICK();
 
         // toggle XECL after a delay (except for the last one which is aligned to latch timing)
         if (bank >= 15) {
