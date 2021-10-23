@@ -67,12 +67,14 @@ void loop() {
         #define DOTTICK() { \
           uint8_t portXSCLDown = pgm_read_byte(dotBlock); \
           uint8_t portXSCLUp = portXSCLDown | PORTD_XSCL; \
-          PORTD = portXSCLDown; \
           dotBlock++; \
+          PORTD = portXSCLDown; \
           NOP(); \
           PORTD = portXSCLUp; \
           NOP(); \
           PORTD = portXSCLDown; \
+          NOP(); \
+          NOP(); \
         }
 
         DOTTICK();
